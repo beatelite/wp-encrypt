@@ -50,6 +50,7 @@ if ( ! class_exists( 'WPENC\ActionHandler' ) ) {
 				add_action( 'wp_ajax_wpenc_' . $action, array( $this, 'ajax_request' ) );
 				add_action( 'wp_encrypt_' . $action, array( $this, 'cron_request' ) );
 			}
+			add_action( 'wpmu_new_blog', array( $this, 'add_new_site_to_cert' ), 10000, 6 );
 		}
 
 		/**
@@ -480,6 +481,85 @@ if ( ! class_exists( 'WPENC\ActionHandler' ) ) {
 
 			wp_redirect( add_query_arg( $query_arg, 'true', App::get_admin_url( $network_wide ? 'network' : 'site' ) ) );
 			exit;
+		}
+		
+		/**
+		 * adds a new site to the cert when it's created 
+		 *
+		 * @since 1.0.0
+		 * @access public
+		 * @static
+		 *
+		 * @param int       $blog_id The blog id
+		 * @param int       $user_ud The user ID
+		 * @param string    $domain The domain used for new site
+		 * @return null
+		 */
+		public function add_new_site_to_cert() {
+		    
+		    $network_wide = is_multisite(); // not totally accurate since we many not always be making a global request
+		    
+			if ( ! Util::can_generate_certificate() ) {
+				// return new WP_Error( 'domain_cannot_sign', __( 'Domain cannot be signed. Either the account is not registered yet or the settings are not valid.', 'wp-encrypt' ) );
+				error_log( print_r('Domain cannot be signed. Either the account is not registered yet or the settings are not valid.', true));
+			}
+
+			$filesystem_check = $this->maybe_request_filesystem_credentials( $network_wide );
+			if ( false === $filesystem_check ) {
+				// return new WP_Error( 'invalid_filesystem_credentials', __( 'Invalid or missing filesystem credentials.', 'wp-encrypt' ), 'error' );
+			    error_log( print_r('Invalid or missing filesystem credentials.', true));
+			    
+			}
+
+			$domain = $network_wide ? Util::get_network_domain() : Util::get_site_domain();
+			$addon_domains = $network_wide ? Util::get_network_addon_domains( null, Util::get_option( 'include_all_networks' ) ) : array();
+
+			/**
+			 * Filters the addon domains to create the certificate for.
+			 *
+			 * Using this filter basically allows to generate the certificate for any URLs,
+			 * even those outside of the WordPress installation.
+			 *
+			 * @since 1.0.0
+			 *
+			 * @param array  $addon_domains The addon domains.
+			 * @param string $domain        The root domain for the certificate.
+			 * @param bool   $network_wide  Whether this certificate is created for an entire network.
+			 */
+			$addon_domains = apply_filters( 'wpenc_addon_domains', $addon_domains, $domain, $network_wide );
+
+			$manager = CertificateManager::get();
+			$response = $manager->generate_certificate( $domain, $addon_domains, array(
+				'ST'	=> Util::get_option( 'country_name' ),
+				'C'		=> Util::get_option( 'country_code' ),
+				'O'		=> Util::get_option( 'organization' ),
+			) );
+			if ( is_wp_error( $response ) ) {
+				return $response;
+			}
+
+			Util::set_registration_info( 'certificate', $response );
+
+			if ( Util::get_option( 'autogenerate_certificate' ) ) {
+				Util::schedule_autogenerate_event( current_time( 'timestamp' ), true );
+			}
+			
+
+			/**
+			 * Fires after the SSL certificate has been generated.
+			 *
+			 * The hook is invoked after both initial and subsequent certificate generation processes.
+			 *
+			 * @since 1.0.0
+			 *
+			 * @param array  $response      Response from the certificate generation call.
+			 * @param string $domain        Primary domain of the generated certificate.
+			 * @param array  $addon_domains Additional domains of the generated certificate.
+			 */
+			do_action( 'wpenc_certificate_generated', $response, $domain, $addon_domains );
+            error_log( print_r( implode( ', ', $response['domains'] ) ) );
+            // $dat = shell_exec('/sbin/service apache2 restart');
+            // error_log(print_r($dat, true));
 		}
 	}
 }
