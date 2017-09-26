@@ -201,20 +201,29 @@ if ( ! class_exists( 'WPENC\Core\Util' ) ) {
 		 */
 		public static function detect_base( $mode = 'url' ) {
 			$content_parts = explode( '/', str_replace( array( 'https://', 'http://' ), '', rtrim( WP_CONTENT_URL, '/' ) ) );
+			
 			$dirname_up = count( $content_parts ) - 1;
-
+            
 			$base = WP_CONTENT_URL;
+			
 			if ( 'path' === $mode ) {
 				$base = WP_CONTENT_DIR;
 			}
-
+            // error_log(print_r(WP_SITEURL, true));
 			$base = rtrim( $base, '/' );
-
+            
 			for ( $i = 0; $i < $dirname_up; $i++ ) {
-				$base = dirname( $base );
+				 $base = dirname( $base );
+				//  check the base for single slash
+				 if( $base == '/' ){
+				     $base = '';
+				 }
+				// $base = ''; 
+				 
 			}
-
+            
 			return $base;
+// 			return'http://agency.atlas6.ar1dev.com';
 		}
 
 		/**
@@ -303,6 +312,7 @@ if ( ! class_exists( 'WPENC\Core\Util' ) ) {
 					$all_domains[] = 'www.' . $addon_domain;
 				}
 			}
+// 			error_log(print_r(array_unique( $all_domains ), true));
 
 			return array_unique( $all_domains );
 		}
