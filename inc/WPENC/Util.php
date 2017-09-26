@@ -303,11 +303,19 @@ if ( ! class_exists( 'WPENC\Util' ) ) {
 					'network_id'	=> $network_id,
 				) );
 			} else {
-				$args = array( 'domain__not_in' => array( $network->domain ) );
+			    
+				$args = array( 
+				    'domain__not_in' => array( $network->domain ),
+				
+				);
+				
 				if ( $network_id ) {
 					$args['network_id'] = $network_id;
 				}
+				$args['deleted'] = 0; //exclude deleted sites
+				
 				$sites = get_sites( $args );
+				
 			}
 
 			foreach ( $sites as $site ) {
