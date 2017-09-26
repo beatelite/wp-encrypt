@@ -84,16 +84,18 @@ if ( ! class_exists( 'WPENC\Core\Challenge' ) ) {
 			}
 			$filesystem->chmod( $token_path, 0644 );
 
-			$response = wp_remote_get( Util::get_letsencrypt_challenges_dir_url() . '/' . $challenge['token'] );
+			$response = wp_remote_get(  'http://atlasrepublic.co/' . Util::get_letsencrypt_challenges_dir_url() . '/' . $challenge['token'] );
 			if ( is_wp_error( $response ) ) {
+			    
 				$filesystem->delete( $token_path );
+                
 				return new WP_Error( 'challenge_request_failed', sprintf( __( 'Challenge request failed for domain %s.', 'wp-encrypt' ), $domain ) );
 			}
 
 			if ( $data !== trim( wp_remote_retrieve_body( $response ) ) ) {
 				$filesystem->delete( $token_path );
 				return new WP_Error( 'challenge_self_check_failed', sprintf( __( 'Challenge self check failed for domain %s.', 'wp-encrypt' ), $domain ) );
-			}
+			} 
 
 			$result = $client->challenge( $challenge['uri'], $challenge['token'], $data );
 
