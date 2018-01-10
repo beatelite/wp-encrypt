@@ -84,7 +84,20 @@ if ( ! class_exists( 'WPENC\Core\Challenge' ) ) {
 			}
 			$filesystem->chmod( $token_path, 0644 );
 
-			$response = wp_remote_get(  'http://atlasrepublic.co/' . Util::get_letsencrypt_challenges_dir_url() . '/' . $challenge['token'] );
+            //CUSTOM: check the environment before issuing a challenge
+            if(defined (WP_ENV ) && WP_ENV == 'production') {
+			    $response = wp_remote_get(  'http://atlasrepublic.co/' . Util::get_letsencrypt_challenges_dir_url() . '/' . $challenge['token'] );
+            }
+            
+            elseif (defined (WP_ENV ) && WP_ENV == 'development') {
+			    $response = wp_remote_get(  'http://agency.atlas6.ar1dev.com//' . Util::get_letsencrypt_challenges_dir_url() . '/' . $challenge['token'] );
+
+            }
+            else {
+                $response = wp_remote_get( Util::get_letsencrypt_challenges_dir_url() . '/' . $challenge['token'] );
+
+            }
+            
 			if ( is_wp_error( $response ) ) {
 			    
 				$filesystem->delete( $token_path );
